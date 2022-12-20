@@ -3,6 +3,8 @@
 !/build/compile_commands.json
 !/build2/compile_commands.json
 
+*.out
+
 /*_openvino_*
 /.vscode
 /cpm_modules
