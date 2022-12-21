@@ -1,6 +1,7 @@
 #include "lexer.h"
 #include <cstddef>
 #include <string.h>
+#include <unordered_set>
 
 //
 //
@@ -41,12 +42,108 @@ lexCharacterDelimited(std::string source, Cursor ic, char delimiter) {
     }
     return {{}, cur, false};
 };
+
+std::string longestMatch(std::string source, Cursor ic,
+                         std::vector<std::string> options) {
+    Cursor cur = ic;
+    std::string matched;
+    std::unordered_set<size_t> skipList;
+
+    for (; cur.pointer < source.size(); cur.pointer++) {
+        std::string substr =
+            source.substr(ic.pointer, cur.pointer - ic.pointer);
+
+        for (size_t idx = 0; idx < options.size(); idx++) {
+            // this option is already skipped
+            if (skipList.find(idx) != skipList.end()) {
+                continue;
+            }
+
+            const auto &option = options[idx];
+
+            // this substr already longer than the option, so skip this option.
+            if (substr.size() > option.size()) {
+                skipList.insert(idx);
+                continue;
+            }
+
+            // this substr is already not part of option, so skip this option.
+            if (option.rfind(substr, 0) != 0) {
+                skipList.insert(idx);
+                continue;
+            }
+
+            if (substr == option) {
+                skipList.insert(idx);
+                if (substr.size() > matched.size()) {
+                    matched = substr;
+                }
+                continue;
+            }
+        }
+    }
+
+    return matched;
+};
+
 std::tuple<Token, Cursor, bool> lexKeyword(std::string source, Cursor ic) {
-    return {};
+    Cursor cur = ic;
+    std::vector<std::string> options{
+        selectKeyword, fromKeyword, asKeyword,     tableKeyword, createKeyword,
+        insertKeyword, intoKeyword, valuesKeyword, intKeyword,   textKeyword,
+    };
+
+    std::string match = longestMatch(source, ic, options);
+    if (match.size() == 0) {
+        return {{}, ic, false};
+    }
+
+    cur.pointer = ic.pointer + match.size();
+    cur.loc.col = ic.loc.col + match.size();
+
+    Token t{
+        .value = match,
+        .loc = cur.loc,
+        .kind = TokenKind::StringKind,
+    };
+
+    return {t, cur, true};
 };
+
 std::tuple<Token, Cursor, bool> lexSymbol(std::string source, Cursor ic) {
+    Cursor cur = ic;
+
+    char c = source[cur.pointer];
+
+    cur.pointer++;
+    cur.loc.col++;
+
+    switch (c) {
+    case '\n':
+        // new line.
+        cur.loc.col = 0;
+        cur.loc.line++;
+    case '\t':
+    case ' ':
+        return {{}, cur, false};
+    };
+
+    std::vector<std::string> options{
+        semicolonSymbol, asteriskSymbol,   commaSymbol,
+        leftParenSymbol, rightParenSymbol,
+    };
+    std::string match = longestMatch(source, ic, options);
+
+    if (match.size() == 0) {
+        return {{}, cur, false};
+    }
+
+    cur.pointer = ic.pointer + match.size();
+    cur.loc.col = ic.loc.col + match.size();
+
     return {};
 };
+
 std::tuple<Token, Cursor, bool> lexString(std::string source, Cursor ic) {
     return lexCharacterDelimited(source, ic, '\'');
 };
@@ -127,6 +224,14 @@ std::tuple<Token, Cursor, bool> lexNumberic(std::string source, Cursor ic) {
 };
 
 std::tuple<Token, Cursor, bool> lexIdentifier(std::string source, Cursor ic) {
+    auto [t, c, ok] = lexCharacterDelimited(source, ic, "\"");
+    if (ok) {
+        return {t, c, ok};
+    }
+
+    // todo
+    // https://notes.eatonphil.com/database-basics.html
+
     return {};
 };
 
