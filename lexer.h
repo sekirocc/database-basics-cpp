@@ -1,3 +1,6 @@
+#pragma once
+
+#include <iostream>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -8,6 +11,7 @@ using Keyword = std::string;
 
 const Keyword selectKeyword = "select";
 const Keyword fromKeyword = "from";
+const Keyword whereKeyword = "where";
 const Keyword asKeyword = "as";
 const Keyword tableKeyword = "table";
 const Keyword createKeyword = "create";
@@ -19,6 +23,7 @@ const Keyword textKeyword = "text";
 
 using Symbol = std::string;
 
+const Symbol equalSymbol = "=";
 const Symbol semicolonSymbol = ";";
 const Symbol asteriskSymbol = "*";
 const Symbol commaSymbol = ",";
@@ -26,6 +31,7 @@ const Symbol leftParenSymbol = "(";
 const Symbol rightParenSymbol = ")";
 
 enum class TokenKind {
+    WhitespaceKind,
     KeywordKind,
     SymbolKind,
     IdentifierKind,
@@ -33,9 +39,35 @@ enum class TokenKind {
     NumericKind,
 };
 
+inline ostream& operator<<(ostream& out, const TokenKind& k) {
+    switch (k) {
+    case TokenKind::KeywordKind:
+        out << "KeywordKind";
+        break;
+    case TokenKind::SymbolKind:
+        out << "SymbolKind";
+        break;
+    case TokenKind::IdentifierKind:
+        out << "IdentifierKind";
+        break;
+    case TokenKind::StringKind:
+        out << "StringKind";
+        break;
+    case TokenKind::NumericKind:
+        out << "NumericKind";
+        break;
+    default:
+        out << "";
+        break;
+    }
+
+    return out;
+};
+
 struct Location {
-    uint32_t line;
-    uint32_t col;
+    int line;
+    int col;
+    Location() : line{0}, col{0} {};
 };
 
 struct Token {
@@ -44,19 +76,30 @@ struct Token {
     Location loc;
 };
 
+inline ostream& operator<<(ostream& out, const Token& t) {
+    out << "value: " << t.value << std::endl;
+    out << "kind: " << t.kind << std::endl;
+    out << "location: line " << t.loc.line << " col " << t.loc.col << std::endl;
+
+    return out;
+}
+
 struct Cursor {
     uint32_t pointer;
     Location loc;
+    Cursor() : pointer{0}, loc{} {};
 };
 
-using LexFunc =
-    std::function<std::tuple<Token, Cursor, bool>(std::string, Cursor)>;
+using LexFunc = std::function<std::tuple<Token, Cursor, bool>(std::string, Cursor)>;
 
 std::tuple<Token, Cursor, bool> lexKeyword(std::string source, Cursor ic);
 std::tuple<Token, Cursor, bool> lexSymbol(std::string source, Cursor ic);
 std::tuple<Token, Cursor, bool> lexString(std::string source, Cursor ic);
 std::tuple<Token, Cursor, bool> lexNumberic(std::string source, Cursor ic);
 std::tuple<Token, Cursor, bool> lexIdentifier(std::string source, Cursor ic);
+
+std::tuple<Token, Cursor, bool> lexCharacterDelimited(std::string source, Cursor ic,
+                                                      char delimiter);
 
 class Lexer {
   public:

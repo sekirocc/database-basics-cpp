@@ -4,6 +4,8 @@
 !/build2/compile_commands.json
 
 *.out
+*.out.*
+*.gch
 
 /*_openvino_*
 /.vscode
